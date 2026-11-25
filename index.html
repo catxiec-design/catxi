@@ -103,7 +103,7 @@
     font-family: "Pixelify Sans", sans-serif; font-weight: 700; font-size: 1.8rem;
     background: #fff; color: #1d222b; border: 3px solid rgba(255,255,255,.85);
   }
-  .avatar img { width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
+  .avatar img { width: 100%; height: 100%; object-fit: cover; }
 
   /* profile */
   .back { display: inline-block; margin: 1.5rem 0 1rem; color: var(--muted); text-decoration: none; }
@@ -167,6 +167,9 @@
   .wiki-body th, .wiki-body td { text-align: left; padding: .5rem .75rem; border-bottom: 1px solid var(--line); }
   .wiki-body th { color: var(--muted); }
   .wiki-side .none { color: var(--muted); padding: .5rem .75rem; }
+
+  .note { color: var(--muted); font-size: .95rem; max-width: 42rem; margin: .75rem 0; }
+  .video .vd { display: block; color: var(--muted); font-size: .9rem; }
 
   footer { border-top: 1px solid var(--line); margin-top: 3rem; padding: 1.5rem 0 3rem; color: var(--muted); font-size: .95rem; }
   .view { display: none; }
@@ -243,48 +246,46 @@
 const SITE = {
   name: "Unstable SMP",
   tagline: "A fan-made hub for the Unstable SMP. Pick a member to see their channel and videos.",
-  discord: ""   // optional: paste a Discord invite link here to show a Discord button
+  discord: "",          // optional: paste a Discord invite link to show a Discord button
+  youtubeApiKey: ""     // paste your free YouTube Data API key here for live subs and videos
 };
 
 /* One entry per member.
-   slug      short lowercase name used in the link (letters, numbers, hyphens)
-   color     main card color, color2 is the second color of the gradient
-   banner    OPTIONAL image for the card background, e.g. "banners/wemmbu.jpg"
-   avatar    OPTIONAL profile picture, e.g. "avatars/wemmbu.png"
-   subs      OPTIONAL text shown in the pill, e.g. "4.37M"
-   channelId OPTIONAL YouTube channel ID (starts with UC). Shows a "Latest uploads"
-             player that updates by itself.
-   links     any number of {label, url}. These are YouTube search links for now:
-             swap in each member's real channel link.
-   videos    OPTIONAL list of YouTube video IDs (the part after v= in the link),
-             written as "ID" or {id: "ID", title: "My title"}                   */
+   channelId  the YouTube channel ID (already filled in for you)
+   color      main card color, color2 is the second color of the gradient
+   subs       backup sub count, only shown if live data can't load
+   banner     OPTIONAL image to use instead of the channel's own banner
+   avatar     OPTIONAL image to use instead of the channel's own picture
+   links      any number of {label, url}
+   videos     OPTIONAL pinned videos shown above the live list,
+              written as "ID" or {id: "ID", title: "My title"}                */
 const MEMBERS = [
   {
     slug: "wemmbu", name: "Wemmbu", role: "",
-    color: "#6a1fc2", color2: "#c04fd8", banner: "", avatar: "", subs: "4.37M",
-    channelId: "",
-    links: [{ label: "YouTube", url: "https://www.youtube.com/results?search_query=Wemmbu" }],
+    channelId: "UCkzzNLnuM-VsATWC53ehwOQ",
+    color: "#6a1fc2", color2: "#c04fd8", subs: "4.37M", banner: "", avatar: "",
+    links: [{ label: "YouTube", url: "https://www.youtube.com/@wemmbumc" }],
     videos: []
   },
   {
     slug: "parrotx2", name: "ParrotX2", role: "",
-    color: "#1b7a3e", color2: "#8fd88a", banner: "", avatar: "", subs: "4.04M",
-    channelId: "",
-    links: [{ label: "YouTube", url: "https://www.youtube.com/results?search_query=ParrotX2" }],
+    channelId: "UCPLMPHT-d8GZOqL_AHJFdQQ",
+    color: "#1b7a3e", color2: "#8fd88a", subs: "4.04M", banner: "", avatar: "",
+    links: [{ label: "YouTube", url: "https://www.youtube.com/@ParrotX2" }],
     videos: []
   },
   {
     slug: "flamefrags", name: "FlameFrags", role: "",
-    color: "#a3121f", color2: "#5b2a6e", banner: "", avatar: "", subs: "2.81M",
-    channelId: "",
-    links: [{ label: "YouTube", url: "https://www.youtube.com/results?search_query=FlameFrags" }],
+    channelId: "UCvYPobTo42NM36X7VC4dLhA",
+    color: "#a3121f", color2: "#5b2a6e", subs: "2.81M", banner: "", avatar: "",
+    links: [{ label: "YouTube", url: "https://www.youtube.com/@FlameFragsMC" }],
     videos: []
   },
   {
-    slug: "member-four", name: "Member Four", role: "",
-    color: "#0b4d2e", color2: "#161616", banner: "", avatar: "", subs: "2.64M",
-    channelId: "",
-    links: [{ label: "YouTube", url: "https://www.youtube.com/" }],
+    slug: "spoke", name: "Spoke", role: "",
+    channelId: "UCk2uxbWi5py_iJXaEsh2YRA",
+    color: "#0b4d2e", color2: "#161616", subs: "", banner: "", avatar: "",
+    links: [{ label: "YouTube", url: "https://www.youtube.com/@Spokeishere" }],
     videos: []
   }
 ];
@@ -308,17 +309,110 @@ const el = (tag, cls, text) => {
   return n;
 };
 
+/* ---------- YouTube data (live) ---------- */
+const API = "https://www.googleapis.com/youtube/v3";
+const CACHE_MINUTES = 30;
+const live = {};   // channelId -> { subs, avatar, banner }
+const validId = (id) => /^UC[\w-]{22}$/.test(id || "");
+
+function cacheGet(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const o = JSON.parse(raw);
+    return Date.now() - o.t > CACHE_MINUTES * 60000 ? null : o.v;
+  } catch (e) { return null; }
+}
+function cacheSet(key, v) {
+  try { localStorage.setItem(key, JSON.stringify({ t: Date.now(), v })); } catch (e) {}
+}
+async function yt(endpoint, params) {
+  const q = new URLSearchParams(Object.assign({}, params, { key: SITE.youtubeApiKey }));
+  const r = await fetch(API + "/" + endpoint + "?" + q);
+  const data = await r.json();
+  if (!r.ok) throw new Error((data.error && data.error.message) || "HTTP " + r.status);
+  return data;
+}
+
+function fmtSubs(n) {
+  const trim = (x) => x.toFixed(2).replace(/\.?0+$/, "");
+  if (n >= 1e6) return trim(n / 1e6) + "M";
+  if (n >= 1e3) return trim(n / 1e3) + "K";
+  return String(n);
+}
+
+const liveOf = (m) => live[m.channelId] || {};
+const avatarOf = (m) => m.avatar || liveOf(m).avatar || "";
+const bannerOf = (m) => m.banner || liveOf(m).banner || "";
+function subsText(m) {
+  const l = liveOf(m);
+  return typeof l.subs === "number" ? fmtSubs(l.subs) : (m.subs || "");
+}
+
+async function loadLive() {
+  if (!SITE.youtubeApiKey) {
+    console.info("No YouTube API key set: showing backup sub counts and the uploads player.");
+    return;
+  }
+  const ids = MEMBERS.map((m) => m.channelId).filter(validId);
+  const key = "usmp-channels:" + ids.join("");
+  let stats = cacheGet(key);
+  if (!stats) {
+    try {
+      const d = await yt("channels", { part: "snippet,statistics,brandingSettings", id: ids.join(","), maxResults: 50 });
+      stats = {};
+      (d.items || []).forEach((c) => {
+        const banner = c.brandingSettings && c.brandingSettings.image && c.brandingSettings.image.bannerExternalUrl;
+        const th = c.snippet && c.snippet.thumbnails;
+        stats[c.id] = {
+          subs: c.statistics.hiddenSubscriberCount ? null : Number(c.statistics.subscriberCount),
+          avatar: th ? (th.medium || th.default).url : "",
+          banner: banner ? banner + "=w1060" : ""
+        };
+      });
+      cacheSet(key, stats);
+    } catch (e) {
+      console.warn("Could not load YouTube channel stats:", e.message);
+      return;
+    }
+  }
+  Object.assign(live, stats);
+  renderMembers();
+  route(true);
+}
+
+async function loadVideos(m) {
+  const key = "usmp-videos:" + m.channelId;
+  const cached = cacheGet(key);
+  if (cached) return cached;
+  const d = await yt("playlistItems", {
+    part: "snippet,contentDetails",
+    playlistId: "UU" + m.channelId.slice(2),
+    maxResults: 24
+  });
+  const list = (d.items || []).map((i) => ({
+    id: i.contentDetails.videoId,
+    title: i.snippet.title,
+    date: i.contentDetails.videoPublishedAt || i.snippet.publishedAt
+  })).filter((v) => v.id && !/^(Private|Deleted) video$/i.test(v.title));
+  cacheSet(key, list);
+  return list;
+}
+
+/* ---------- Rendering ---------- */
 function paint(node, m) {
-  node.style.backgroundImage = m.banner
-    ? `url("${m.banner}")`
+  const b = bannerOf(m);
+  node.style.backgroundImage = b
+    ? `linear-gradient(110deg, ${m.color}e6 0%, ${m.color2}66 100%), url("${b}")`
     : `linear-gradient(120deg, ${m.color}, ${m.color2})`;
 }
 
 function makeAvatar(m) {
   const a = el("div", "avatar");
-  if (m.avatar) {
+  const src = avatarOf(m);
+  if (src) {
     const img = el("img");
-    img.src = m.avatar;
+    img.src = src;
     img.alt = "";
     a.appendChild(img);
   } else {
@@ -337,7 +431,8 @@ function renderMembers() {
     const info = el("div");
     info.append(el("div", "name", m.name), el("div", "role", m.role || ""));
     a.append(makeAvatar(m), info);
-    if (m.subs) a.appendChild(el("span", "pill", m.subs));
+    const t = subsText(m);
+    if (t) a.appendChild(el("span", "pill", t));
     box.appendChild(a);
   });
 }
@@ -359,6 +454,64 @@ function openVideo(id) {
   $("#player").showModal();
 }
 
+function videoGrid(list) {
+  const grid = el("div", "videos");
+  list.forEach((v) => {
+    const item = typeof v === "string" ? { id: v } : v;
+    const b = el("button", "video");
+    b.type = "button";
+    const thumb = el("span", "thumb");
+    thumb.style.display = "block";
+    const img = el("img");
+    img.src = "https://i.ytimg.com/vi/" + encodeURIComponent(item.id) + "/hqdefault.jpg";
+    img.alt = "";
+    img.loading = "lazy";
+    const play = el("span", "play");
+    play.appendChild(el("span"));
+    thumb.append(img, play);
+    b.append(thumb, el("span", "vt", item.title || "Watch video"));
+    if (item.date) {
+      const d = new Date(item.date);
+      if (!isNaN(d)) b.appendChild(el("span", "vd", d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })));
+    }
+    b.addEventListener("click", () => openVideo(item.id));
+    grid.appendChild(b);
+  });
+  return grid;
+}
+
+function uploadsPlayer(m) {
+  const box = el("div", "uploads");
+  const f = el("iframe");
+  f.title = m.name + " uploads";
+  f.src = "https://www.youtube-nocookie.com/embed/videoseries?list=UU" + m.channelId.slice(2);
+  f.allow = "accelerometer; encrypted-media; picture-in-picture; fullscreen";
+  f.allowFullscreen = true;
+  f.referrerPolicy = "strict-origin-when-cross-origin";
+  box.appendChild(f);
+  return box;
+}
+
+async function fillVideos(m, holder) {
+  const fallback = (msg) => {
+    holder.innerHTML = "";
+    if (msg) holder.appendChild(el("p", "note", msg));
+    if (validId(m.channelId)) holder.appendChild(uploadsPlayer(m));
+    else holder.appendChild(el("p", "empty", "No channel ID set for this member."));
+  };
+  if (!SITE.youtubeApiKey || !validId(m.channelId)) { fallback(); return; }
+  holder.appendChild(el("p", "note", "Loading videos..."));
+  try {
+    const list = await loadVideos(m);
+    if (!holder.isConnected) return;
+    holder.innerHTML = "";
+    holder.appendChild(list.length ? videoGrid(list) : el("p", "empty", "No public videos found for this channel."));
+  } catch (e) {
+    console.warn("Could not load videos:", e.message);
+    if (holder.isConnected) fallback("Couldn't load the video list from YouTube, so this is the uploads player instead.");
+  }
+}
+
 function renderMember(slug) {
   const m = MEMBERS.find((x) => x.slug === slug);
   const body = $("#member-body");
@@ -369,65 +522,43 @@ function renderMember(slug) {
   back.href = "#home";
   body.appendChild(back);
 
+  const l = liveOf(m);
+  const subsLine = typeof l.subs === "number"
+    ? l.subs.toLocaleString("en-US") + " subscribers"
+    : (m.subs ? m.subs + " subscribers" : "");
   const head = el("div", "profile-head");
   paint(head, m);
   const who = el("div");
-  who.append(el("h2", "", m.name), el("div", "role", [m.role, m.subs ? m.subs + " subscribers" : ""].filter(Boolean).join(" - ")));
+  who.append(el("h2", "", m.name), el("div", "role", [m.role, subsLine].filter(Boolean).join(" - ")));
   head.append(makeAvatar(m), who);
   body.appendChild(head);
 
+  if (typeof l.subs === "number") {
+    body.appendChild(el("p", "note", "Live from YouTube. YouTube rounds public subscriber counts to three significant figures, so this is as exact as it gets."));
+  }
+
   if ((m.links || []).length) {
     const links = el("div", "links");
-    m.links.forEach((l) => {
-      const a = el("a", "btn ghost", l.label);
-      a.href = l.url; a.target = "_blank"; a.rel = "noopener";
+    m.links.forEach((lk) => {
+      const a = el("a", "btn ghost", lk.label);
+      a.href = lk.url; a.target = "_blank"; a.rel = "noopener";
       links.appendChild(a);
     });
     body.appendChild(links);
   }
 
   const sec = el("section", "block");
-  if (m.channelId && /^UC[\w-]{22}$/.test(m.channelId)) {
-    sec.appendChild(el("h2", "", "Latest uploads"));
-    const box = el("div", "uploads");
-    const f = el("iframe");
-    f.title = m.name + " latest uploads";
-    f.src = "https://www.youtube-nocookie.com/embed/videoseries?list=UU" + m.channelId.slice(2);
-    f.allow = "accelerometer; encrypted-media; picture-in-picture; fullscreen";
-    f.allowFullscreen = true;
-    f.referrerPolicy = "strict-origin-when-cross-origin";
-    box.appendChild(f);
-    sec.appendChild(box);
+  if ((m.videos || []).length) {
+    sec.appendChild(el("h2", "", "Featured"));
+    sec.appendChild(videoGrid(m.videos));
   }
-
-  sec.appendChild(el("h2", "", "Videos"));
-  sec.lastChild.style.marginTop = "2rem";
-  const list = m.videos || [];
-  if (!list.length) {
-    sec.appendChild(el("p", "empty", "No videos added yet. Add YouTube video IDs to this member's videos list to show them here."));
-  } else {
-    const grid = el("div", "videos");
-    list.forEach((v) => {
-      const id = typeof v === "string" ? v : v.id;
-      const title = typeof v === "string" ? "Watch video" : (v.title || "Watch video");
-      const b = el("button", "video");
-      b.type = "button";
-      const thumb = el("span", "thumb");
-      thumb.style.display = "block";
-      const img = el("img");
-      img.src = "https://i.ytimg.com/vi/" + encodeURIComponent(id) + "/hqdefault.jpg";
-      img.alt = "";
-      img.loading = "lazy";
-      const play = el("span", "play");
-      play.appendChild(el("span"));
-      thumb.append(img, play);
-      b.append(thumb, el("span", "vt", title));
-      b.addEventListener("click", () => openVideo(id));
-      grid.appendChild(b);
-    });
-    sec.appendChild(grid);
-  }
+  const h = el("h2", "", "Videos");
+  if ((m.videos || []).length) h.style.marginTop = "2rem";
+  const holder = el("div");
+  sec.append(h, holder);
   body.appendChild(sec);
+  fillVideos(m, holder);
+
   document.title = m.name + " | " + SITE.name;
   return true;
 }
@@ -455,7 +586,7 @@ function renderWikiPage(id) {
   document.title = page.title + " | " + SITE.name;
 }
 
-function route() {
+function route(keepScroll) {
   const parts = location.hash.replace("#", "").split("/");
   let view = ["home", "member", "wiki", "channels"].includes(parts[0]) ? parts[0] : "home";
   if (view === "member" && !renderMember(parts[1])) view = "home";
@@ -463,7 +594,7 @@ function route() {
   document.querySelectorAll("[data-nav]").forEach((a) => a.classList.toggle("active", a.dataset.nav === (view === "member" ? "home" : view)));
   if (view === "wiki") { renderWikiList($("#search").value); renderWikiPage(parts[1]); }
   if (view === "home" || view === "channels") document.title = SITE.name;
-  window.scrollTo(0, 0);
+  if (keepScroll !== true) window.scrollTo(0, 0);
 }
 
 function init() {
@@ -477,14 +608,14 @@ function init() {
   renderChannels();
 
   const dlg = $("#player");
-  const stop = () => { $("#player-frame").src = "about:blank"; };
   $("#player-close").addEventListener("click", () => dlg.close());
-  dlg.addEventListener("close", stop);
+  dlg.addEventListener("close", () => { $("#player-frame").src = "about:blank"; });
   dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
 
   $("#search").addEventListener("input", (e) => renderWikiList(e.target.value));
-  window.addEventListener("hashchange", route);
+  window.addEventListener("hashchange", () => route());
   route();
+  loadLive();
 }
 init();
 </script>
