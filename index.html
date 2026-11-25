@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Unstable SMP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ground: #1d222b;
+    --panel: #2a313d;
+    --line: #3d4757;
+    --text: #f2efe8;
+    --muted: #9aa3b2;
+    --hazard: #ffc400;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--text);
+    font-family: "Atkinson Hyperlegible", system-ui, sans-serif;
+    font-size: 1.05rem;
+    line-height: 1.6;
+  }
+  a { color: var(--hazard); }
+  a:focus-visible, button:focus-visible, input:focus-visible {
+    outline: 3px solid var(--hazard);
+    outline-offset: 2px;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 1.25rem; }
+
+  /* header */
+  header { border-bottom: 1px solid var(--line); }
+  header .wrap { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem 1.5rem; padding-top: .9rem; padding-bottom: .9rem; }
+  .brand { font-family: "Pixelify Sans", sans-serif; font-weight: 700; font-size: 1.3rem; color: var(--text); text-decoration: none; }
+  nav { display: flex; gap: 1.25rem; align-items: center; }
+  nav a { color: var(--muted); text-decoration: none; padding: .25rem 0; border-bottom: 3px solid transparent; }
+  nav a:hover { color: var(--text); }
+  nav a.active { color: var(--text); border-bottom-color: var(--hazard); }
+  nav a.discord { color: #1d222b; background: var(--hazard); padding: .3rem .8rem; border-bottom: 0; font-weight: 700; }
+
+  .tape { height: 14px; background: repeating-linear-gradient(-45deg, var(--hazard) 0 14px, var(--ground) 14px 28px); }
+
+  /* hero */
+  .hero { padding: 3.5rem 0 1.5rem; }
+  h1 {
+    font-family: "Pixelify Sans", sans-serif; font-weight: 700;
+    font-size: clamp(3rem, 12vw, 7rem); line-height: .95;
+    margin: 0 0 1rem; letter-spacing: -.01em;
+  }
+  h1.glitch { animation: glitch 1.1s steps(1, end) 1; }
+  @keyframes glitch {
+    0%   { text-shadow: 6px 0 #ff3d71, -6px 0 #35e0ff; transform: translateX(-4px); }
+    12%  { text-shadow: -8px 2px #ff3d71, 8px -2px #35e0ff; transform: translateX(5px) skewX(6deg); }
+    24%  { text-shadow: none; transform: none; }
+    40%  { text-shadow: 10px 0 #ff3d71, -10px 0 #35e0ff; transform: translateX(-6px); }
+    52%  { text-shadow: none; transform: none; }
+    70%  { text-shadow: -4px 0 #ff3d71, 4px 0 #35e0ff; transform: skewX(-4deg); }
+    82%, 100% { text-shadow: none; transform: none; }
+  }
+  .lede { max-width: 38rem; color: var(--muted); font-size: 1.2rem; margin: 0 0 1.5rem; }
+  .actions { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; }
+  .btn { font: inherit; font-weight: 700; cursor: pointer; background: var(--hazard); color: #1d222b; border: 0; padding: .7rem 1.2rem; text-decoration: none; display: inline-block; }
+  .btn.ghost { background: transparent; color: var(--text); border: 2px solid var(--line); }
+  .btn.ghost:hover { border-color: var(--hazard); }
+  .ip { font-family: "Pixelify Sans", sans-serif; font-size: 1.15rem; background: var(--panel); padding: .6rem 1rem; border-left: 4px solid var(--hazard); }
+
+  h2 { font-family: "Pixelify Sans", sans-serif; font-size: 2rem; margin: 0 0 1rem; }
+  h3 { font-family: "Pixelify Sans", sans-serif; font-size: 1.3rem; margin: 1.75rem 0 .5rem; }
+  .block { padding: 2.25rem 0; }
+  .intro { color: var(--muted); max-width: 40rem; margin: 0 0 1.5rem; }
+
+  /* member cards */
+  .members { display: grid; grid-template-columns: 1fr; gap: 1rem; max-width: 680px; }
+  .card {
+    position: relative; display: flex; align-items: center; gap: 1rem;
+    min-height: 140px; padding: 1.1rem 1.5rem;
+    color: #fff; text-decoration: none; overflow: hidden;
+    border-radius: 22px;
+    background-size: cover; background-position: center;
+  }
+  .card::before {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(90deg, rgba(0,0,0,.55) 0%, rgba(0,0,0,.15) 70%, rgba(0,0,0,0) 100%);
+  }
+  .card:hover, .card:focus-visible { outline: 3px solid var(--hazard); outline-offset: 2px; }
+  .card > * { position: relative; }
+  .card .name { font-family: "Pixelify Sans", sans-serif; font-weight: 700; font-size: 1.6rem; line-height: 1.1; }
+  .card .role { font-size: .95rem; opacity: .85; }
+  .pill {
+    margin-left: auto; background: rgba(0,0,0,.45); padding: .35rem .8rem;
+    border-radius: 999px; font-weight: 700; white-space: nowrap;
+  }
+  .pill::before { content: ""; display: inline-block; width: .55rem; height: .55rem; background: #ff4d4d; border-radius: 50%; margin-right: .45rem; }
+
+  .avatar {
+    flex: none; width: 64px; height: 64px; border-radius: 50%;
+    display: grid; place-items: center; overflow: hidden;
+    font-family: "Pixelify Sans", sans-serif; font-weight: 700; font-size: 1.8rem;
+    background: #fff; color: #1d222b; border: 3px solid rgba(255,255,255,.85);
+  }
+  .avatar img { width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
+
+  /* profile */
+  .back { display: inline-block; margin: 1.5rem 0 1rem; color: var(--muted); text-decoration: none; }
+  .back:hover { color: var(--text); }
+  .profile-head {
+    position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 1.25rem;
+    padding: 2rem 1.5rem; border-radius: 18px; overflow: hidden; color: #fff;
+    background-size: cover; background-position: center;
+  }
+  .profile-head::before { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(0,0,0,.6), rgba(0,0,0,.1)); }
+  .profile-head > * { position: relative; }
+  .profile-head .avatar { width: 96px; height: 96px; font-size: 2.6rem; }
+  .profile-head h2 { margin: 0; font-size: 2.4rem; }
+  .profile-head .role { opacity: .9; }
+  .links { display: flex; flex-wrap: wrap; gap: .6rem; margin: 1.25rem 0 0; }
+
+  .videos { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 1.25rem; margin-top: 1rem; }
+  .video { background: none; border: 0; padding: 0; text-align: left; color: var(--text); font: inherit; cursor: pointer; }
+  .video .thumb { position: relative; aspect-ratio: 16 / 9; background: var(--panel); border-radius: 10px; overflow: hidden; }
+  .video img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .video .play {
+    position: absolute; inset: 0; display: grid; place-items: center;
+  }
+  .video .play span {
+    width: 52px; height: 36px; background: rgba(0,0,0,.7); border-radius: 10px; position: relative;
+  }
+  .video .play span::after {
+    content: ""; position: absolute; left: 21px; top: 9px;
+    border-left: 16px solid #fff; border-top: 9px solid transparent; border-bottom: 9px solid transparent;
+  }
+  .video:hover .thumb, .video:focus-visible .thumb { outline: 3px solid var(--hazard); }
+  .video .vt { display: block; margin-top: .5rem; font-weight: 700; }
+  .uploads { position: relative; aspect-ratio: 16 / 9; width: 100%; max-width: 860px; background: #000; border-radius: 10px; overflow: hidden; }
+  .uploads iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .empty { color: var(--muted); border: 2px dashed var(--line); padding: 1.25rem; max-width: 42rem; }
+
+  dialog { width: min(920px, 94vw); padding: 0; border: 0; background: #000; border-radius: 10px; overflow: visible; }
+  dialog::backdrop { background: rgba(0,0,0,.8); }
+  dialog .frame { position: relative; aspect-ratio: 16 / 9; }
+  dialog iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; border-radius: 10px; }
+  dialog .close { position: absolute; right: 0; top: -2.8rem; }
+
+  /* channels list + wiki */
+  .rows { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+  .rows li { display: grid; grid-template-columns: 9rem 1fr auto; gap: 1rem; align-items: center; padding: 1rem 0; border-bottom: 1px solid var(--line); }
+  .rows .plat { color: var(--muted); }
+  .rows .who { font-weight: 700; }
+  @media (max-width: 640px) { .rows li { grid-template-columns: 1fr auto; } .rows .plat { grid-column: 1 / -1; margin-bottom: -.5rem; } }
+
+  .wiki { display: grid; grid-template-columns: 15rem 1fr; gap: 2.5rem; align-items: start; }
+  @media (max-width: 760px) { .wiki { grid-template-columns: 1fr; gap: 1.25rem; } }
+  .wiki-side input { width: 100%; font: inherit; color: var(--text); background: var(--panel); border: 2px solid var(--line); padding: .6rem .75rem; margin-bottom: .75rem; }
+  .wiki-side ul { list-style: none; margin: 0; padding: 0; }
+  .wiki-side a { display: block; padding: .45rem .75rem; color: var(--muted); text-decoration: none; border-left: 4px solid var(--line); }
+  .wiki-side a:hover { color: var(--text); }
+  .wiki-side a.active { color: var(--text); border-left-color: var(--hazard); background: var(--panel); }
+  .wiki-body { min-height: 20rem; }
+  .wiki-body h2 { border-bottom: 1px solid var(--line); padding-bottom: .5rem; }
+  .wiki-body p, .wiki-body li { max-width: 42rem; }
+  .wiki-body table { border-collapse: collapse; width: 100%; max-width: 42rem; }
+  .wiki-body th, .wiki-body td { text-align: left; padding: .5rem .75rem; border-bottom: 1px solid var(--line); }
+  .wiki-body th { color: var(--muted); }
+  .wiki-side .none { color: var(--muted); padding: .5rem .75rem; }
+
+  footer { border-top: 1px solid var(--line); margin-top: 3rem; padding: 1.5rem 0 3rem; color: var(--muted); font-size: .95rem; }
+  .view { display: none; }
+  .view.on { display: block; }
+  @media (prefers-reduced-motion: reduce) { h1.glitch { animation: none; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <a class="brand" href="#home" id="brand"></a>
+    <nav aria-label="Main">
+      <a href="#home" data-nav="home">Members</a>
+      <a href="#wiki" data-nav="wiki">Wiki</a>
+      <a href="#channels" data-nav="channels">Channels</a>
+      <a class="discord" id="discord" href="#" target="_blank" rel="noopener">Discord</a>
+    </nav>
+  </div>
+</header>
+<div class="tape" aria-hidden="true"></div>
+
+<main>
+  <div class="view" id="view-home">
+    <div class="wrap hero">
+      <h1 id="title" class="glitch"></h1>
+      <p class="lede" id="tagline"></p>
+      <div class="actions">
+        <a class="btn" href="#wiki">Read the wiki</a>
+      </div>
+    </div>
+    <div class="wrap block">
+      <h2>Members</h2>
+      <p class="intro">Pick a member to see their channel and videos.</p>
+      <div class="members" id="members"></div>
+    </div>
+  </div>
+
+  <div class="view" id="view-member"><div class="wrap" id="member-body"></div></div>
+
+  <div class="view" id="view-wiki">
+    <div class="wrap block">
+      <div class="wiki">
+        <aside class="wiki-side" aria-label="Wiki pages">
+          <input id="search" type="search" placeholder="Search the wiki" aria-label="Search the wiki">
+          <ul id="wiki-list"></ul>
+        </aside>
+        <article class="wiki-body" id="wiki-body"></article>
+      </div>
+    </div>
+  </div>
+
+  <div class="view" id="view-channels">
+    <div class="wrap block">
+      <h2>Channels</h2>
+      <p class="intro">Every link from every member, in one place.</p>
+      <ul class="rows" id="all-channels"></ul>
+    </div>
+  </div>
+</main>
+
+<dialog id="player" aria-label="Video player">
+  <button class="btn ghost close" id="player-close" type="button">Close</button>
+  <div class="frame"><iframe id="player-frame" title="Video" allow="accelerometer; autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>
+</dialog>
+
+<footer><div class="wrap" id="footer"></div></footer>
+
+<script>
+/* ==============================================================
+   EDIT THIS SECTION. Everything on the site comes from here.
+   ============================================================== */
+
+const SITE = {
+  name: "Unstable SMP",
+  tagline: "A fan-made hub for the Unstable SMP. Pick a member to see their channel and videos.",
+  discord: ""   // optional: paste a Discord invite link here to show a Discord button
+};
+
+/* One entry per member.
+   slug      short lowercase name used in the link (letters, numbers, hyphens)
+   color     main card color, color2 is the second color of the gradient
+   banner    OPTIONAL image for the card background, e.g. "banners/wemmbu.jpg"
+   avatar    OPTIONAL profile picture, e.g. "avatars/wemmbu.png"
+   subs      OPTIONAL text shown in the pill, e.g. "4.37M"
+   channelId OPTIONAL YouTube channel ID (starts with UC). Shows a "Latest uploads"
+             player that updates by itself.
+   links     any number of {label, url}. These are YouTube search links for now:
+             swap in each member's real channel link.
+   videos    OPTIONAL list of YouTube video IDs (the part after v= in the link),
+             written as "ID" or {id: "ID", title: "My title"}                   */
+const MEMBERS = [
+  {
+    slug: "wemmbu", name: "Wemmbu", role: "",
+    color: "#6a1fc2", color2: "#c04fd8", banner: "", avatar: "", subs: "4.37M",
+    channelId: "",
+    links: [{ label: "YouTube", url: "https://www.youtube.com/results?search_query=Wemmbu" }],
+    videos: []
+  },
+  {
+    slug: "parrotx2", name: "ParrotX2", role: "",
+    color: "#1b7a3e", color2: "#8fd88a", banner: "", avatar: "", subs: "4.04M",
+    channelId: "",
+    links: [{ label: "YouTube", url: "https://www.youtube.com/results?search_query=ParrotX2" }],
+    videos: []
+  },
+  {
+    slug: "flamefrags", name: "FlameFrags", role: "",
+    color: "#a3121f", color2: "#5b2a6e", banner: "", avatar: "", subs: "2.81M",
+    channelId: "",
+    links: [{ label: "YouTube", url: "https://www.youtube.com/results?search_query=FlameFrags" }],
+    videos: []
+  },
+  {
+    slug: "member-four", name: "Member Four", role: "",
+    color: "#0b4d2e", color2: "#161616", banner: "", avatar: "", subs: "2.64M",
+    channelId: "",
+    links: [{ label: "YouTube", url: "https://www.youtube.com/" }],
+    videos: []
+  }
+];
+
+/* Wiki pages: id (used in the link), title, and body (plain HTML). */
+const WIKI = [
+  { id: "about", title: "About this site", body: `
+      <p>This is a fan-made hub for the Unstable SMP, a scripted Minecraft SMP. Pick a member on the Members page to see their channel and videos.</p>
+      <p>To add more wiki pages, add an entry to the WIKI list at the top of the script in index.html.</p>` }
+];
+
+/* ==============================================================
+   Site code. You shouldn't need to change anything below.
+   ============================================================== */
+
+const $ = (s) => document.querySelector(s);
+const el = (tag, cls, text) => {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text !== undefined) n.textContent = text;
+  return n;
+};
+
+function paint(node, m) {
+  node.style.backgroundImage = m.banner
+    ? `url("${m.banner}")`
+    : `linear-gradient(120deg, ${m.color}, ${m.color2})`;
+}
+
+function makeAvatar(m) {
+  const a = el("div", "avatar");
+  if (m.avatar) {
+    const img = el("img");
+    img.src = m.avatar;
+    img.alt = "";
+    a.appendChild(img);
+  } else {
+    a.textContent = m.name.charAt(0).toUpperCase();
+  }
+  return a;
+}
+
+function renderMembers() {
+  const box = $("#members");
+  box.innerHTML = "";
+  MEMBERS.forEach((m) => {
+    const a = el("a", "card");
+    a.href = "#member/" + m.slug;
+    paint(a, m);
+    const info = el("div");
+    info.append(el("div", "name", m.name), el("div", "role", m.role || ""));
+    a.append(makeAvatar(m), info);
+    if (m.subs) a.appendChild(el("span", "pill", m.subs));
+    box.appendChild(a);
+  });
+}
+
+function renderChannels() {
+  const ul = $("#all-channels");
+  ul.innerHTML = "";
+  MEMBERS.forEach((m) => (m.links || []).forEach((l) => {
+    const li = el("li");
+    const a = el("a", "", "Open channel");
+    a.href = l.url; a.target = "_blank"; a.rel = "noopener";
+    li.append(el("span", "plat", l.label), el("span", "who", m.name), a);
+    ul.appendChild(li);
+  }));
+}
+
+function openVideo(id) {
+  $("#player-frame").src = "https://www.youtube-nocookie.com/embed/" + encodeURIComponent(id) + "?autoplay=1";
+  $("#player").showModal();
+}
+
+function renderMember(slug) {
+  const m = MEMBERS.find((x) => x.slug === slug);
+  const body = $("#member-body");
+  body.innerHTML = "";
+  if (!m) return false;
+
+  const back = el("a", "back", "Back to members");
+  back.href = "#home";
+  body.appendChild(back);
+
+  const head = el("div", "profile-head");
+  paint(head, m);
+  const who = el("div");
+  who.append(el("h2", "", m.name), el("div", "role", [m.role, m.subs ? m.subs + " subscribers" : ""].filter(Boolean).join(" - ")));
+  head.append(makeAvatar(m), who);
+  body.appendChild(head);
+
+  if ((m.links || []).length) {
+    const links = el("div", "links");
+    m.links.forEach((l) => {
+      const a = el("a", "btn ghost", l.label);
+      a.href = l.url; a.target = "_blank"; a.rel = "noopener";
+      links.appendChild(a);
+    });
+    body.appendChild(links);
+  }
+
+  const sec = el("section", "block");
+  if (m.channelId && /^UC[\w-]{22}$/.test(m.channelId)) {
+    sec.appendChild(el("h2", "", "Latest uploads"));
+    const box = el("div", "uploads");
+    const f = el("iframe");
+    f.title = m.name + " latest uploads";
+    f.src = "https://www.youtube-nocookie.com/embed/videoseries?list=UU" + m.channelId.slice(2);
+    f.allow = "accelerometer; encrypted-media; picture-in-picture; fullscreen";
+    f.allowFullscreen = true;
+    f.referrerPolicy = "strict-origin-when-cross-origin";
+    box.appendChild(f);
+    sec.appendChild(box);
+  }
+
+  sec.appendChild(el("h2", "", "Videos"));
+  sec.lastChild.style.marginTop = "2rem";
+  const list = m.videos || [];
+  if (!list.length) {
+    sec.appendChild(el("p", "empty", "No videos added yet. Add YouTube video IDs to this member's videos list to show them here."));
+  } else {
+    const grid = el("div", "videos");
+    list.forEach((v) => {
+      const id = typeof v === "string" ? v : v.id;
+      const title = typeof v === "string" ? "Watch video" : (v.title || "Watch video");
+      const b = el("button", "video");
+      b.type = "button";
+      const thumb = el("span", "thumb");
+      thumb.style.display = "block";
+      const img = el("img");
+      img.src = "https://i.ytimg.com/vi/" + encodeURIComponent(id) + "/hqdefault.jpg";
+      img.alt = "";
+      img.loading = "lazy";
+      const play = el("span", "play");
+      play.appendChild(el("span"));
+      thumb.append(img, play);
+      b.append(thumb, el("span", "vt", title));
+      b.addEventListener("click", () => openVideo(id));
+      grid.appendChild(b);
+    });
+    sec.appendChild(grid);
+  }
+  body.appendChild(sec);
+  document.title = m.name + " | " + SITE.name;
+  return true;
+}
+
+function renderWikiList(filter) {
+  const ul = $("#wiki-list");
+  const q = (filter || "").trim().toLowerCase();
+  const current = location.hash.split("/")[1] || WIKI[0].id;
+  ul.innerHTML = "";
+  const hits = WIKI.filter((p) => !q || p.title.toLowerCase().includes(q) || p.body.toLowerCase().includes(q));
+  if (!hits.length) { ul.appendChild(el("li", "none", "No pages match that search.")); return; }
+  hits.forEach((p) => {
+    const li = el("li");
+    const a = el("a", p.id === current ? "active" : "", p.title);
+    a.href = "#wiki/" + p.id;
+    li.appendChild(a);
+    ul.appendChild(li);
+  });
+}
+
+function renderWikiPage(id) {
+  const page = WIKI.find((p) => p.id === id) || WIKI[0];
+  $("#wiki-body").innerHTML = "<h2></h2>" + page.body;
+  $("#wiki-body h2").textContent = page.title;
+  document.title = page.title + " | " + SITE.name;
+}
+
+function route() {
+  const parts = location.hash.replace("#", "").split("/");
+  let view = ["home", "member", "wiki", "channels"].includes(parts[0]) ? parts[0] : "home";
+  if (view === "member" && !renderMember(parts[1])) view = "home";
+  document.querySelectorAll(".view").forEach((v) => v.classList.toggle("on", v.id === "view-" + view));
+  document.querySelectorAll("[data-nav]").forEach((a) => a.classList.toggle("active", a.dataset.nav === (view === "member" ? "home" : view)));
+  if (view === "wiki") { renderWikiList($("#search").value); renderWikiPage(parts[1]); }
+  if (view === "home" || view === "channels") document.title = SITE.name;
+  window.scrollTo(0, 0);
+}
+
+function init() {
+  $("#brand").textContent = SITE.name;
+  $("#title").textContent = SITE.name;
+  $("#tagline").textContent = SITE.tagline;
+  $("#discord").href = SITE.discord || "#";
+  $("#discord").hidden = !SITE.discord;
+  $("#footer").textContent = SITE.name + " is a fan-made site. It is not affiliated with Mojang, Microsoft or the creators shown.";
+  renderMembers();
+  renderChannels();
+
+  const dlg = $("#player");
+  const stop = () => { $("#player-frame").src = "about:blank"; };
+  $("#player-close").addEventListener("click", () => dlg.close());
+  dlg.addEventListener("close", stop);
+  dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
+
+  $("#search").addEventListener("input", (e) => renderWikiList(e.target.value));
+  window.addEventListener("hashchange", route);
+  route();
+}
+init();
+</script>
+</body>
+</html>
